@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>amou</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💗</text></svg>">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --fond: #2b1233;
+      --fond-2: #4a1d5a;
+      --rose: #ff5fa2;
+      --corail: #ff8a5c;
+      --creme: #fff1f6;
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: "Baloo 2", system-ui, sans-serif;
+      color: var(--creme);
+      background: radial-gradient(circle at 50% 120%, var(--fond-2), var(--fond) 70%);
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    h1.logo { font-weight: 800; font-size: clamp(3rem, 14vw, 6rem); letter-spacing: .02em; margin: 0; }
+    .barre { position: fixed; top: 0; left: 0; right: 0; padding: calc(env(safe-area-inset-top, 0px) + .75rem) 1rem .5rem; z-index: 5; pointer-events: none; }
+    .barre .stat { font-size: 1.25rem; font-weight: 800; }
+    #bossbarre { position: fixed; left: 1rem; right: 1rem; top: calc(env(safe-area-inset-top, 0px) + 3.2rem); z-index: 5; display: none; }
+    #bossbarre .progress { height: 14px; background: rgba(255,255,255,.18); }
+    #bossbarre .progress-bar { background: var(--rose); transition: width .1s; }
+    #piste { position: fixed; inset: 0; overflow: hidden; }
+    .coeur {
+      position: absolute; bottom: -90px; line-height: 1; cursor: pointer;
+      animation: monte linear forwards;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,.35));
+    }
+    .coeur.pop { animation: pop .25s ease-out forwards; }
+    @keyframes monte { to { transform: translateY(calc(-100vh - 180px)); } }
+    @keyframes pop { to { transform: scale(1.8); opacity: 0; } }
+    .boss {
+      position: absolute; line-height: 1; font-size: 88px; cursor: pointer;
+      transition-property: left, top; transition-timing-function: cubic-bezier(.45,0,.55,1);
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,.5));
+    }
+    .boss.touche { animation: secoue .15s; }
+    @keyframes secoue { 50% { transform: scale(.82) rotate(-8deg); } }
+    .plus { position: absolute; font-weight: 800; font-size: 1.3rem; color: #fff; pointer-events: none; animation: flotte .7s ease-out forwards; z-index: 4; }
+    .plus.moins { color: #ff6b6b; }
+    .plus.temps { color: #7dffb0; }
+    @keyframes flotte { to { transform: translateY(-44px); opacity: 0; } }
+    .ecran {
+      position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center; padding: 1.5rem;
+      background: rgba(43, 18, 51, .9);
+    }
+    .ecran.cache { display: none; }
+    .regles { list-style: none; padding: 0; margin: 0 0 1.5rem; font-size: 1.1rem; max-width: 22rem; text-align: left; }
+    .regles li { margin-bottom: .35rem; }
+    .btn-amou {
+      background: var(--rose); border: 0; color: #fff; font-weight: 800; font-size: 1.4rem;
+      padding: .6rem 2.4rem; border-radius: 999px;
+    }
+    .btn-amou:hover, .btn-amou:focus-visible { background: var(--corail); color: #fff; }
+    .btn-amou:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    #annonce {
+      position: fixed; left: 0; right: 0; top: 40%; text-align: center; z-index: 6;
+      font-size: clamp(2rem, 9vw, 3.5rem); font-weight: 800; pointer-events: none; display: none;
+    }
+    @media (prefers-reduced-motion: reduce) { .plus { animation-duration: .01s; } }
+  </style>
+</head>
+<body>
+
+  <div class="barre d-flex justify-content-between">
+    <div class="stat">💗 <span id="score">0</span> <small id="niveau" class="opacity-75"></small></div>
+    <div class="stat" id="blocTemps">⏱ <span id="temps">30</span></div>
+    <div class="stat">🏆 <span id="record">0</span></div>
+  </div>
+
+  <div id="bossbarre">
+    <div class="progress" role="progressbar" aria-label="Vie du boss">
+      <div class="progress-bar" id="bossvie" style="width:100%"></div>
+    </div>
+  </div>
+
+  <div id="piste"></div>
+  <div id="annonce"></div>
+
+  <div id="accueil" class="ecran">
+    <h1 class="logo">amou</h1>
+    <p class="fs-5 mb-3">Touche les cœurs. Ça accélère.</p>
+    <ul class="regles">
+      <li>❤️ rouge : +1 point</li>
+      <li>💙 💚 💛 💜 🧡 : +½ point</li>
+      <li>🖤 noir : −1 point</li>
+      <li>⏱ 3 cœurs de même couleur à la suite : +2 secondes</li>
+      <li>👹 À la fin, le boss arrive : 20 touches pour le battre</li>
+      <li>🚀 Ensuite, niveau suivant : la vitesse monte de +0,3 à +1 selon ta rapidité</li>
+    </ul>
+    <button id="jouer" class="btn btn-amou">Jouer</button>
+  </div>
+
+  <div id="fin" class="ecran cache">
+    <h2 class="fw-bold" id="titreFin" style="font-size:2.2rem">Terminé</h2>
+    <p class="fs-3 mb-1"><span id="final">0</span> points</p>
+    <p id="message" class="fs-5 mb-4"></p>
+    <button id="suivant" class="btn btn-amou">Niveau 2</button>
+    <button id="recommencer" class="btn btn-link text-white mt-3">Recommencer à zéro</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function () {
+      var DUREE = 30;
+      var PV_BOSS = 20;
+      var TAILLE_BOSS = 88;
+      // poids = chances d'apparition
+      var TYPES = [
+        { e: "❤️", c: "rouge",  pts: 1,    w: 34 },
+        { e: "💙", c: "bleu",   pts: 0.5,  w: 11 },
+        { e: "💚", c: "vert",   pts: 0.5,  w: 11 },
+        { e: "💛", c: "jaune",  pts: 0.5,  w: 11 },
+        { e: "💜", c: "violet", pts: 0.5,  w: 11 },
+        { e: "🧡", c: "orange", pts: 0.5,  w: 11 },
+        { e: "🖤", c: "noir",   pts: -1,   w: 11 }
+      ];
+      var TOTAL_POIDS = TYPES.reduce(function (a, t) { return a + t.w; }, 0);
+
+      var piste = document.getElementById("piste");
+      var elScore = document.getElementById("score");
+      var elTemps = document.getElementById("temps");
+      var elRecord = document.getElementById("record");
+      var blocTemps = document.getElementById("blocTemps");
+      var accueil = document.getElementById("accueil");
+      var fin = document.getElementById("fin");
+      var annonce = document.getElementById("annonce");
+      var bossBarre = document.getElementById("bossbarre");
+      var bossVie = document.getElementById("bossvie");
+
+      var score, temps, ecoule, serieCouleur, serieNb, phase;
+      var minuteur = null, apparition = null, deplacement = null, debutBoss = 0, pv = 0;
+      var record = 0;
+      var niveau = 1, vitesse = 1, debutPartie = 0, bonusSuivant = 0;
+
+      try { record = parseFloat(localStorage.getItem("amou-record")) || 0; } catch (e) {}
+      elRecord.textContent = record;
+
+      function fmt(n) { return n % 1 ? n.toFixed(1) : String(n); }
+
+      function majScore() { elScore.textContent = fmt(score); }
+
+      function flotter(texte, classe, x, y) {
+        var p = document.createElement("div");
+        p.className = "plus " + (classe || "");
+        p.textContent = texte;
+        p.style.left = x + "px";
+        p.style.top = y + "px";
+        piste.appendChild(p);
+        setTimeout(function () { p.remove(); }, 750);
+      }
+
+      function annoncer(texte, ms) {
+        annonce.textContent = texte;
+        annonce.style.display = "block";
+        setTimeout(function () { annonce.style.display = "none"; }, ms);
+      }
+
+      function tirerType() {
+        var r = Math.random() * TOTAL_POIDS;
+        for (var i = 0; i < TYPES.length; i++) {
+          r -= TYPES[i].w;
+          if (r < 0) return TYPES[i];
+        }
+        return TYPES[0];
+      }
+
+      // crescendo : p va de 0 à 1 sur ~45 s de jeu
+      function progression() { return Math.min(ecoule / 45, 1); }
+
+      function creerCoeur() {
+        var t = tirerType();
+        var c = document.createElement("div");
+        var taille = 40 + Math.random() * 36;
+        var p = progression();
+        c.className = "coeur";
+        c.textContent = t.e;
+        c.style.fontSize = taille + "px";
+        c.style.left = Math.random() * (window.innerWidth - taille) + "px";
+        c.style.animationDuration = ((6.5 - 3.5 * p + Math.random() * 1.2) / vitesse) + "s";
+        c.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          if (c.classList.contains("pop") || phase !== "coeurs") return;
+          toucherCoeur(t, c);
+        });
+        c.addEventListener("animationend", function (e) {
+          if (e.animationName === "monte") c.remove();
+        });
+        piste.appendChild(c);
+        apparition = setTimeout(creerCoeur, (650 - 380 * p) / vitesse);
+      }
+
+      function toucherCoeur(t, c) {
+        var r = c.getBoundingClientRect();
+        score = Math.max(0, score + t.pts);
+        majScore();
+        flotter((t.pts > 0 ? "+" : "−") + fmt(Math.abs(t.pts)), t.pts < 0 ? "moins" : "", r.left, r.top);
+
+        if (t.c === "noir") {
+          serieCouleur = null; serieNb = 0;
+        } else if (t.c === serieCouleur) {
+          serieNb++;
+          if (serieNb >= 3) {
+            temps += 2;
+            elTemps.textContent = temps;
+            flotter("+2 s", "temps", r.left, r.top - 26);
+            serieCouleur = null; serieNb = 0;
+          }
+        } else {
+          serieCouleur = t.c; serieNb = 1;
+        }
+
+        c.classList.add("pop");
+        setTimeout(function () { c.remove(); }, 260);
+      }
+
+      function demarrer() {
+        score = 0; temps = DUREE; ecoule = 0; serieCouleur = null; serieNb = 0; phase = "coeurs";
+        debutPartie = Date.now();
+        document.getElementById("niveau").textContent = "niv. " + niveau + (niveau > 1 ? " · ×" + vitesse.toFixed(2).replace(".", ",") : "");
+        majScore();
+        elTemps.textContent = temps;
+        blocTemps.style.visibility = "visible";
+        bossBarre.style.display = "none";
+        piste.innerHTML = "";
+        accueil.classList.add("cache");
+        fin.classList.add("cache");
+        creerCoeur();
+        minuteur = setInterval(function () {
+          temps--; ecoule++;
+          elTemps.textContent = Math.max(temps, 0);
+          if (temps <= 0) lancerBoss();
+        }, 1000);
+      }
+
+      /* ---------- BOSS ---------- */
+      function coins() {
+        var w = window.innerWidth, h = window.innerHeight;
+        var haut = 90; // sous la barre
+        return [
+          [4, haut],
+          [w - TAILLE_BOSS - 4, haut],
+          [4, h - TAILLE_BOSS - 8],
+          [w - TAILLE_BOSS - 4, h - TAILLE_BOSS - 8]
+        ];
+      }
+
+      function lancerBoss() {
+        clearInterval(minuteur);
+        clearTimeout(apparition);
+        phase = "boss";
+        pv = PV_BOSS;
+        blocTemps.style.visibility = "hidden";
+        piste.innerHTML = "";
+        bossVie.style.width = "100%";
+        bossBarre.style.display = "block";
+        annoncer("Le boss arrive", 1400);
+
+        var boss = document.createElement("div");
+        boss.className = "boss";
+        boss.textContent = "👹";
+        boss.style.transitionDuration = "0s";
+        var cs = coins();
+        var courant = Math.floor(Math.random() * 4);
+        boss.style.left = cs[courant][0] + "px";
+        boss.style.top = cs[courant][1] + "px";
+        piste.appendChild(boss);
+
+        boss.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          if (phase !== "boss") return;
+          pv--;
+          bossVie.style.width = (pv / PV_BOSS * 100) + "%";
+          boss.classList.remove("touche");
+          void boss.offsetWidth;
+          boss.classList.add("touche");
+          var r = boss.getBoundingClientRect();
+          flotter(String(PV_BOSS - pv) + "/" + PV_BOSS, "", r.left + 20, r.top);
+          if (pv <= 0) finirBoss();
+        });
+
+        function saut() {
+          var cs2 = coins();
+          var suivant;
+          do { suivant = Math.floor(Math.random() * 4); } while (suivant === courant);
+          courant = suivant;
+          boss.style.transitionDuration = (0.55 / vitesse) + "s"; // vitesse x2 par rapport aux cœurs
+          boss.style.left = cs2[courant][0] + "px";
+          boss.style.top = cs2[courant][1] + "px";
+        }
+
+        // départ après l'annonce, il ne s'arrête plus jusqu'à sa mort
+        setTimeout(function () {
+          if (phase !== "boss") return;
+          saut();
+          deplacement = setInterval(saut, 650 / vitesse);
+        }, 1400);
+        debutBoss = Date.now() + 1400;
+      }
+
+      function finirBoss() {
+        clearInterval(deplacement);
+        var duree = ((Date.now() - debutBoss) / 1000).toFixed(1);
+        terminer("Boss vaincu en " + duree + " s");
+      }
+
+      function terminer(msg) {
+        phase = "fin";
+        clearInterval(minuteur);
+        clearTimeout(apparition);
+        clearInterval(deplacement);
+        piste.innerHTML = "";
+        bossBarre.style.display = "none";
+        var txt = msg;
+        if (score > record) {
+          record = score;
+          elRecord.textContent = fmt(record);
+          try { localStorage.setItem("amou-record", String(record)); } catch (e) {}
+          txt += " · nouveau record";
+        }
+        var duree = (Date.now() - debutPartie) / 1000;
+        var bonus = Math.min(1, Math.max(0.3, score / duree)); // points par seconde, borné de 0,3 à 1
+        bonusSuivant = bonus;
+        txt += "\nNiveau " + (niveau + 1) + " : vitesse +" + bonus.toFixed(2).replace(".", ",");
+        document.getElementById("titreFin").textContent = "Niveau " + niveau + " terminé";
+        document.getElementById("final").textContent = fmt(score);
+        document.getElementById("message").style.whiteSpace = "pre-line";
+        document.getElementById("message").textContent = txt;
+        document.getElementById("suivant").textContent = "Niveau " + (niveau + 1);
+        fin.classList.remove("cache");
+      }
+
+      function depuisZero() { niveau = 1; vitesse = 1; demarrer(); }
+      document.getElementById("jouer").addEventListener("click", depuisZero);
+      document.getElementById("recommencer").addEventListener("click", depuisZero);
+      document.getElementById("suivant").addEventListener("click", function () {
+        niveau++;
+        vitesse += bonusSuivant;
+        demarrer();
+      });
+    })();
+  </script>
+</body>
+</html>
